@@ -13,20 +13,9 @@ namespace console {
 
     template <typename Policy> class Screen : public Policy {
       public:
-        Screen() {
-            initscr();
-            refresh();
-            noecho();
-
-            // Init data.
-            Policy::init_data();
-
-            // Update data
-            Policy::update_data();
-
-            // Update view
-            print_input();
-            print_output();
+        template<typename Params>
+        Screen(Params && params) : Policy(std::forward<Params>(params)) {
+            init();
         }
 
         ~Screen() { endwin(); }
@@ -80,12 +69,13 @@ namespace console {
             }
 
             std::string empty_line(ncols, ' ');
-            while (idx > 1) {
+            while (idx > -1) {
                 mvprintw(idx, 0, empty_line.data());
                 --idx;
             }
 
-            move(nrows - 1, Policy::pattern.size() + 2);
+            // Make sure that the cursor is at the input.
+            move(nrows + 2, Policy::pattern.size() + 2);
         }
 
         void print_input() {
@@ -105,6 +95,21 @@ namespace console {
             }
             return results;
         }
+
+        void init() {
+            // Init screen
+            initscr();
+            refresh();
+            noecho();
+
+            // Init view
+            Policy::init_data();
+            Policy::update_data();
+            print_input();
+            print_output();
+        }
+
+        int current_position = 0;
     };
 
 } // namespace console
