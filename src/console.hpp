@@ -60,12 +60,16 @@ namespace console {
             const int nrows = LINES - 3;
             const int ncols = COLS;
             Policy::update_data();
-            int idx = LINES - 3;
+            int idx = nrows;
 
             // Print out content.
             for (auto const &aline : Policy::data) {
-                mvprintw(idx, 0, "%s", create_line(aline, ncols).data());
-                --idx;
+                if (idx == nrows)
+                    mvprintw(idx, 0, "> %s", create_line(aline, ncols - 10).data());
+                else
+                    mvprintw(idx, 0, "  %s", create_line(aline, ncols - 10).data());
+                    
+                if (--idx < 0) break;
             }
 
             std::string empty_line(ncols, ' ');
@@ -76,6 +80,7 @@ namespace console {
 
             // Make sure that the cursor is at the input.
             move(nrows + 2, Policy::pattern.size() + 2);
+            current_position = nrows;
         }
 
         void print_input() {
@@ -107,8 +112,12 @@ namespace console {
             Policy::update_data();
             print_input();
             print_output();
+
+            // Update line cursor
+            current_position = LINES - 3;
         }
 
+        // The current position of a line cursor.
         int current_position = 0;
     };
 
