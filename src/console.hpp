@@ -3,6 +3,10 @@
 #include <string>
 #include <vector>
 
+#include "fmt/format.h"
+
+// TODO: Update view logic.
+
 namespace console {
     enum Key : int {
         BACKSPACE = 127,
@@ -27,11 +31,15 @@ namespace console {
             init();
         }
 
-        ~Screen() { endwin(); }
+        ~Screen() {
+            endwin();
+            if (current_position < Policy::data.size()) {
+                fmt::print("{}\n", Policy::data[current_position]);
+            }
+        }
 
         void run() {
             bool isok = true;
-            const int nrows = LINES - 3;
             while (isok) {
                 int key = getch();
 
@@ -41,13 +49,13 @@ namespace console {
                     continue;
                 }
 
-                mvprintw(0, 0, "key: %d", key);
+                // mvprintw(0, 40, "key: %d", key);
 
                 if (key == Key::UP) {
-                    if (current_position >  0) {
-                        if ((nrows - current_position + 1) < Policy::data.size()) {
-                            --current_position;
-                        }
+                    const size_t nrows = LINES - 3;
+                    const size_t end = std::min(nrows, Policy::data.size());
+                    if ((current_position + 1) < end) {
+                        ++current_position;
                     } else {
                         // Update view.
                     }
@@ -56,10 +64,10 @@ namespace console {
                 }
 
                 if (key == Key::DOWN) {
-                    if (current_position < nrows) {
-                        ++current_position;
+                    if (current_position > 0) {
+                        --current_position;
                     } else {
-                        // Update view 
+                        // Update view
                     }
                     print_output();
                     continue;
@@ -77,7 +85,7 @@ namespace console {
                 }
 
                 if (key == Key::ENTER) {
-                    mvprintw(1, 0, "current_position: %d", current_position);
+                    mvprintw(0, 60, "%s", Policy::data[current_position].data());
                 }
             }
         }
@@ -96,26 +104,29 @@ namespace console {
         }
 
         void print_output() {
-            const int nrows = LINES - 3;
-            const int ncols = COLS;
+            const size_t nrows = LINES - 3;
+            const size_t ncols = COLS;
             Policy::update_data();
-            int idx = nrows;
 
-            // Print out content.
-            mvprintw(0, 0, "-> current_position: %d", current_position);
-            for (auto const &aline : Policy::data) {
-                if (idx == current_position)
-                    mvprintw(idx, 0, "> %s", create_line(aline, ncols - 10).data());
-                else
-                    mvprintw(idx, 0, "  %s", create_line(aline, ncols - 10).data());
-
-                if (--idx < 0) break;
+            // Print out lines.
+            auto end = std::min(nrows, Policy::data.size());
+            size_t idx = 0;
+            for (; idx != end; ++idx) {
+                auto const &aline = Policy::data[idx];
+                if (idx != current_position) {
+                    mvprintw(nrows - idx, 0, "  %s", create_line(aline, ncols - 10).data());
+                } else {
+                    attron(A_BOLD);
+                    mvprintw(nrows - idx, 0, "> %s", create_line(aline, ncols - 10).data());
+                    attroff(A_BOLD);
+                }
             }
 
+            // Erase the empty lines
             std::string empty_line(ncols, ' ');
-            while (idx > 3) {
-                mvprintw(idx, 0, empty_line.data());
-                --idx;
+            while (idx < nrows) {
+                mvprintw(nrows - idx, 0, empty_line.data());
+                ++idx;
             }
 
             // Make sure that the cursor is at the input.
@@ -141,6 +152,8 @@ namespace console {
         }
 
         void init() {
+            current_position = 0;
+            
             // Init screen
             initscr();
             refresh();
@@ -148,20 +161,23 @@ namespace console {
             keypad(stdscr, TRUE);
             raw();
 
-            // Init view
+            // Init data
             Policy::init_data();
             Policy::update_data();
+
+            // Init view
+            const size_t nrows = LINES - 3;
+            begin_view = 0;
+            end_view = std::min(nrows, Policy::data.size());
+            
             print_input();
             print_output();
-
-            // Update line cursor
-            current_position = LINES - 3;
         }
 
         // The current position of a line cursor.
-        int current_position;
-        int begin_view;
+        int current_position; // Current position of the sceen cursor
+        int begin_view = 0;       // Begin view of the data
         int end_view;
-    };
+    }; // End view of the data
 
 } // namespace console
